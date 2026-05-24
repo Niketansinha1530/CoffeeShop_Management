@@ -1,0 +1,102 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Customer {
+  id        Int      @id @default(autoincrement())
+  name      String
+  phone     String   @unique
+  email     String   @unique
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  orders Order[]
+
+  @@map("customers")
+}
+
+model Product {
+  id        Int            @id @default(autoincrement())
+  name      String
+  category  ProductCategory
+  price     Decimal        @db.Decimal(10, 2)
+  available Boolean        @default(true)
+  createdAt DateTime       @default(now()) @map("created_at")
+  updatedAt DateTime       @updatedAt @map("updated_at")
+
+  orderItems OrderItem[]
+
+  @@map("products")
+}
+
+model Order {
+  id          Int         @id @default(autoincrement())
+  txnId       String      @unique @map("txn_id")
+  customerId  Int         @map("customer_id")
+  totalAmount Decimal     @db.Decimal(10, 2) @map("total_amount")
+  status      OrderStatus @default(COMPLETED)
+  createdAt   DateTime    @default(now()) @map("created_at")
+  updatedAt   DateTime    @updatedAt @map("updated_at")
+
+  customer   Customer    @relation(fields: [customerId], references: [id])
+  orderItems OrderItem[]
+  payment    Payment?
+
+  @@index([createdAt])
+  @@index([customerId])
+  @@map("orders")
+}
+
+model OrderItem {
+  id        Int     @id @default(autoincrement())
+  orderId   Int     @map("order_id")
+  productId Int     @map("product_id")
+  quantity  Int
+  unitPrice Decimal @db.Decimal(10, 2) @map("unit_price")
+  subtotal  Decimal @db.Decimal(10, 2)
+
+  order   Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [productId], references: [id])
+
+  @@map("order_items")
+}
+
+model Payment {
+  id      Int           @id @default(autoincrement())
+  orderId Int           @unique @map("order_id")
+  method  PaymentMethod
+  status  PaymentStatus @default(COMPLETED)
+  paidAt  DateTime      @default(now()) @map("paid_at")
+
+  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@map("payments")
+}
+
+enum ProductCategory {
+  HOT
+  COLD
+}
+
+enum OrderStatus {
+  PENDING
+  COMPLETED
+  CANCELLED
+}
+
+enum PaymentMethod {
+  CARD
+  UPI
+  CASH
+}
+
+enum PaymentStatus {
+  PENDING
+  COMPLETED
+  FAILED
+}
